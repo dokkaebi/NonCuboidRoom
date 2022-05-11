@@ -17,7 +17,7 @@ class CustomDataset(data.Dataset):
             tf.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
         # focal length for Pixel 3 (landscape)
-        self.K = np.array([[960, 0, 640], [0, -810, 360], [0, 0, 1]],
+        self.K = np.array([[960, 0, 640], [0, 810, 360], [0, 0, 1]],
                           dtype=np.float32)
         # focal length for iPad Pro (5th gen)
         #self.K = np.array([[1031, 0, 640], [0, -870, 360], [0, 0, 1]],
