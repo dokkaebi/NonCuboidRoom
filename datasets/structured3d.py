@@ -32,6 +32,9 @@ class Structured3D(data.Dataset):
         for _, i in enumerate(files):
             img_name = i[0]
             scene = int(img_name.split('_')[1])
+            # handle some missing scenes
+            if 1600 <= scene < 1800 or scene == 3499:
+                continue
             if scene <= 2999:
                 self.data_set['training'].append(i)
             elif scene <= 3249:
