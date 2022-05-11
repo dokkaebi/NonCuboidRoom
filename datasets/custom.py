@@ -8,7 +8,7 @@ from torch.utils import data
 
 
 class CustomDataset(data.Dataset):
-    def __init__(self, config, phase='test', files='example/'):
+    def __init__(self, config, phase='test', files='data/custom/'):
         self.config = config
         self.phase = phase
         self.max_objs = config.max_objs
@@ -16,8 +16,15 @@ class CustomDataset(data.Dataset):
             tf.ToTensor(),
             tf.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
-        self.K = np.array([[762, 0, 640], [0, -762, 360], [0, 0, 1]],
+        # focal length for Pixel 3 (landscape)
+        self.K = np.array([[960, 0, 640], [0, -810, 360], [0, 0, 1]],
                           dtype=np.float32)
+        # focal length for iPad Pro (5th gen)
+        #self.K = np.array([[1031, 0, 640], [0, -870, 360], [0, 0, 1]],
+        #                  dtype=np.float32)
+        # default set by authors
+        #self.K = np.array([[762, 0, 640], [0, -762, 360], [0, 0, 1]],
+        #                  dtype=np.float32)
         self.K_inv = np.linalg.inv(self.K).astype(np.float32)
 
         self.files = files
