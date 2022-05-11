@@ -288,14 +288,14 @@ def test_nyu303(model, criterion, dataloader, device, cfg):
                 downsample=4)
 
             # no opt
-            _seg, _depth, img, _ = ConvertLayout(inputs['fullimg'][i], _ups, _downs, _attribution,
+            _seg, _depth, img, _polys = ConvertLayout(inputs['fullimg'][i], _ups, _downs, _attribution,
                                                  K=inputs['full_intri'][i].cpu().numpy(), pwalls=_params_layout,
                                                  pfloor=pfloor, pceiling=pceiling,
                                                  ixy1map=inputs['ixy1map'][i].cpu().numpy(), valid=inputs['iseg'][i].cpu().numpy())
             _res = evaluate(inputs['iseg'][i].cpu().numpy(), inputs['idepth'][i].cpu().numpy(), _seg, _depth)
             
             # opt
-            seg, depth, _, _ = ConvertLayout(inputs['fullimg'][i], ups, downs, attribution,
+            seg, depth, _, polys = ConvertLayout(inputs['fullimg'][i], ups, downs, attribution,
                                              K=inputs['full_intri'][i].cpu().numpy(), pwalls=params_layout,
                                              pfloor=pfloor, pceiling=pceiling,
                                              ixy1map=inputs['ixy1map'][i].cpu().numpy(), valid=inputs['iseg'][i].cpu().numpy())
@@ -305,8 +305,10 @@ def test_nyu303(model, criterion, dataloader, device, cfg):
             print(np.mean(np.array(results), axis=0)[:,-1])
             
             if cfg.visual:
-                display2Dseg(img=inputs['fullimg'][i], segs_pred=seg, segs_gt=inputs['iseg'][i].cpu().numpy(), label=inputs['ilbox'][0].cpu().numpy(),
-                            iters=f'{iters}', method='opt_nyu303', draw_gt=1)
+                #display2Dseg(img=inputs['fullimg'][i], segs_pred=seg, segs_gt=inputs['iseg'][i].cpu().numpy(), label=inputs['ilbox'][0].cpu().numpy(),
+                #            iters=f'{iters}', method='opt_nyu303', draw_gt=1)
+                DisplayLayout(img, seg, depth, polys, _seg, _depth, _polys, inputs['iseg'][i].cpu().numpy(),
+                    inputs['ilbox'][i].cpu().numpy(), iters)
             if cfg.exam:
                 return
 
