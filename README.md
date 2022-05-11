@@ -22,15 +22,14 @@ IEEE/CVF Winter Conference on Applications of Computer Vision (WACV), 2022
 
 ## Installation
 
-The code is tested with Ubuntu 16.04, PyTorch v1.5, CUDA 10.1 and cuDNN v7.6.
-
 ``` bash
 # create conda env
-conda create -n layout python=3.6
+conda create -n layout python=3.10
 # activate conda env
 conda activate layout
 # install pytorch
-conda install pytorch==1.5.0 torchvision==0.6.0 cudatoolkit=10.1 -c pytorch
+conda install pytorch==1.11.0 torchvision==0.12.0 cudatoolkit=11.3 -c pytorch
+
 # install dependencies
 pip install -r requirements.txt
 ```
@@ -41,7 +40,7 @@ pip install -r requirements.txt
 
 Please download [Structured3D dataset](https://structured3d-dataset.org/) and our processed [2D line annotations](https://drive.google.com/file/d/1b-BLlXDc323WPb0bS8Jx1dm9xX80q41d/view?usp=sharing). The directory structure should look like:
 
-``` 
+```
 data
 └── Structured3D
     │── Structured3D
@@ -56,7 +55,7 @@ data
 
 Please download [SUN RGB-D dataset](https://rgbd.cs.princeton.edu/), our processed [2D line annotation](https://drive.google.com/drive/folders/1mZlHSrAWALytuKUUsw_E_YmBW4OZgZS3?usp=sharing) for SUN RGB-D dataset, and [layout annotations of NYUv2 303 dataset](https://cs.stanford.edu/people/zjian/project/ICCV13DepthLayout/ICCV13DepthLayout.html). The directory structure should look like:
 
-``` 
+```
 data
 └── SUNRGBD
     │── SUNRGBD

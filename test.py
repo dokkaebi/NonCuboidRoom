@@ -376,7 +376,7 @@ def parse():
 
 if __name__ == '__main__':
     with open('cfg.yaml', 'r') as f:
-        config = yaml.load(f)
+        config = yaml.safe_load(f)
         cfg = EasyDict(config)
     args = parse()
     cfg.update(vars(args))
