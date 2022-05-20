@@ -118,7 +118,7 @@ def run_val(model, criterion, dataloader, accumulators, logger, writer, epoch, d
     if epoch % 10 == 0:
         if not os.path.isdir(f'./checkpoints/checkpoints_{cfg.model_name}'):
             os.makedirs(f'./checkpoints/checkpoints_{cfg.model_name}')
-        if cfg.num_gpus > 1:
+        if hasattr(model, 'module'):
             torch.save(model.module.state_dict(),
                     f'./checkpoints/checkpoints_{cfg.model_name}/{epoch}.pt')
         else:
@@ -131,7 +131,7 @@ def run_val(model, criterion, dataloader, accumulators, logger, writer, epoch, d
         best_info = f'mAR_p:{mAR_p},mAP_p:{mAP_p},mAR_l:{mAR_l},mAP_l:{mAP_l},epoch:{epoch},best_acc:{best_acc}'
         if not os.path.isdir(f'./checkpoints/checkpoints_{cfg.model_name}'):
             os.makedirs(f'./checkpoints/checkpoints_{cfg.model_name}')
-        if cfg.num_gpus > 1:
+        if hasattr(model, 'module'):
             torch.save(model.module.state_dict(),
                    f'./checkpoints/checkpoints_{cfg.model_name}/best.pt')
         else:
@@ -245,8 +245,8 @@ if __name__ == '__main__':
     criterion = Loss(cfg.Weights)
 
     # set data parallel
-    # if cfg.num_gpus > 1 and torch.cuda.is_available():
-    model = torch.nn.DataParallel(model)
+    if cfg.num_gpus > 1 and torch.cuda.is_available():
+        model = torch.nn.DataParallel(model)
 
     # set device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
