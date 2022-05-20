@@ -13,6 +13,7 @@ from datasets import NYU303, CustomDataset, Structured3D
 from models import (ConvertLayout, Detector, DisplayLayout, display2Dseg, Loss,
                     MobileViTDetector, Reconstruction, _validate_colormap,
                     post_process)
+from models.detector import MobileViTDeeplabDetector
 from scipy.optimize import linear_sum_assignment
 
 
@@ -373,7 +374,7 @@ def parse(parser: argparse.ArgumentParser = None) -> argparse.ArgumentParser:
     parser.add_argument('--visual', action='store_true', help='whether to visual the results')
     parser.add_argument('--exam', action='store_true', help='test one example on nyu303 dataset')
     parser.add_argument('--num_workers', type=int, default=0)
-    parser.add_argument('--backbone', type=str, default='hrnet', choices=['hrnet', 'mobilevit'])
+    parser.add_argument('--backbone', type=str, default='hrnet', choices=['hrnet', 'mobilevit', 'deeplab'])
     parser.add_argument('--backbone-weights', type=str, default='checkpoints/mobilevit_s.pt')
 
     args = parser.parse_args()
@@ -424,6 +425,27 @@ if __name__ == '__main__':
             vit_weights = torch.load(
                 opts.backbone_weights, map_location=torch.device('cpu'))
             model = MobileViTDetector(opts, vit_weights=vit_weights)
+
+    elif cfg.backbone == 'deeplab':
+        # Supports a different set of options. Re-parse args.
+        from options.opts import get_training_arguments
+        from options.utils import load_config_file
+
+        parser = get_training_arguments(parse_args=False)
+        opts = parse(parser)
+
+        setattr(opts, 'common.config_file', 'config/deeplabv3_mobilevit_small.yaml')
+        opts = load_config_file(opts)
+
+        if cfg.pretrained:
+            model = MobileViTDeeplabDetector(opts)
+            state_dict = torch.load(cfg.pretrained,
+                                    map_location=torch.device('cpu'))
+            model.load_state_dict(state_dict)
+        else:
+            vit_weights = torch.load(
+                opts.backbone_weights, map_location=torch.device('cpu'))
+            model = MobileViTDeeplabDetector(opts, encoder_weights=vit_weights)
 
     elif cfg.backbone == 'hrnet':
         # create network
