@@ -59,7 +59,7 @@ class Structured3D(data.Dataset):
         assert ratio_h == ratio_w == 2
         if self.phase == 'training' and self.config.colorjitter:
             img = self.colorjitter(img)
-        img = np.array(img)[:, :, :-1]
+        img = np.array(img)[:, :, :3]  # img might be RGB or RGBA
         img = cv2.resize(img, (inw, inh), interpolation=cv2.INTER_LINEAR)
         img, inh, inw = self.padimage(img)
         img = self.transforms(img)
