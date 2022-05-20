@@ -34,6 +34,17 @@ conda install pytorch==1.11.0 torchvision==0.12.0 cudatoolkit=11.3 -c pytorch
 pip install -r requirements.txt
 ```
 
+## Using MobileViT backbone
+
+Clone ml-cvnets repo as a sibling to this directory and install it. Pass the
+`--backbone` flag to the test.py script.
+
+``` bash
+git clone git@github.com:apple/ml-cvnets.git ../ml-cvnets
+pip install -e ../ml-cvnets
+
+```
+
 ## Data Preparation
 
 ### Structured3D Dataset

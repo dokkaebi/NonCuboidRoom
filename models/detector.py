@@ -1,12 +1,5 @@
-from argparse import Namespace
-from typing import Dict
-from cvnets.layers.conv_layer import ConvLayer
 from cvnets.models.classification.mobilevit import MobileViT
-from cvnets.models.segmentation.enc_dec import SegEncoderDecoder
-from options.opts import get_training_arguments
-from options.utils import load_config_file
 from torch import Tensor, nn
-import torch
 
 from models.heads import Heads, HRMerge
 from models.hr_cfg import model_cfg
@@ -67,6 +60,11 @@ class MobileViTBackbone(nn.Module):
     Also updated NonCuboidRoom/cfg.yaml
         num_workers: 8  # instead of 16
 
+    Something about local python version (?) - had to update a getattr
+     in cvnets/models/segmentation/heads/base_seg_head.py:
+    self.n_classes = getattr(opts, 'model.segmentation.n_classes', None) or 20
+     and also in options/utils.py:
+    collections.abc.MutableMapping instead of collections.MutableMapping
 
     Using DeepLabv3 segmenter from cvnets, channel count mismatch
         setup:
@@ -99,27 +97,36 @@ class MobileViTBackbone(nn.Module):
         Here, loading weights for heads is a problem (they were trained with 256d input)
 
 
+    When dropping the final layer and using 160d outputs, sometimes get
+    an assertion in models/reconstruction.py:499 (about half the time)
+        assert len(pfloor) + len(pceiling) == 1
+
+    When using the final layer with 640d outputs, rarely get singular
+    matrix exception in models/reconstruction.py:340
+        res = np.linalg.solve(A, B)
+
+    When using a trainable layer (ASPP or ConvLayer) to bridge between
+    160d backbone output and 256d heads inputs, rare error at
+    utils.py:584 - _segs_noopt or _segs_opt has size 0
+        cost1 = ((_segs_gt[:, np.newaxis] + _segs_noopt)==2).sum((2, 3))
+
+
     """
 
     def __init__(self, opts, weights=None) -> None:
         super().__init__()
         # construct MobileViT model
         self.encoder = MobileViT(opts)
-        self.adapter = ConvLayer(
-            opts,
-            in_channels=self.encoder.model_conf_dict['layer5']['out'],
-            out_channels=256,
-            kernel_size=1,
-        )
-        if weights is not None:
-            self.init_weights(weights=weights)
+        self.init_weights(weights=weights)
 
         # remove unused layers
-        # self.encoder.classifier = None
-        # self.encoder.conv_1x1_exp = None
+        self.encoder.classifier = None
+        self.encoder.conv_1x1_exp = None
 
         # I think this will be 8x8x160 at this point
         # be sure to ouptut the correct shape - Heads need 256 channels
+        self.merge = HRMerge(
+            in_channels=(self.encoder.model_conf_dict['layer5']['out'],))
 
 
     def forward(self, x: Tensor) -> Tensor:
@@ -127,12 +134,12 @@ class MobileViTBackbone(nn.Module):
         # want to return a Tensor for use in later layers
 
         x = self.encoder.extract_end_points_all(x)['out_l5']
-        # x = self.adapter(x)
-
+        x = self.merge([x])
         return x
 
     def init_weights(self, weights=None):
-        self.encoder.load_state_dict(weights)
+        if weights is not None:
+            self.encoder.load_state_dict(weights)
 
 
 class MobileViTDetector(nn.Module):
@@ -144,7 +151,7 @@ class MobileViTDetector(nn.Module):
     def __init__(self, opts, vit_weights=None, heads_weights=None):
         super().__init__()
         self.backbone = MobileViTBackbone(opts, weights=vit_weights)
-        self.heads = Heads(in_planes=160)
+        self.heads = Heads()
         self.init_weights(heads_weights=heads_weights)
 
     def forward(self, x):
@@ -167,4 +174,5 @@ class MobileViTDetector(nn.Module):
     def init_weights(self, heads_weights=None):
         # strict=False because we're loading weights from the original
         # NonCuboidRoom model with a different backbone
-        self.load_state_dict(heads_weights, strict=False)
+        if heads_weights is not None:
+            self.load_state_dict(heads_weights, strict=False)

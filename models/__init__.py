@@ -1,4 +1,4 @@
-from models.detector import Detector
+from models.detector import Detector, MobileViTDetector
 from models.loss import Loss
 from models.reconstruction import ConvertLayout, Reconstruction
 from models.utils import (AverageMeter, DisplayLayout, display2Dseg, evaluate, get_optimizer,
