@@ -181,7 +181,8 @@ if __name__ == '__main__':
     dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=cfg.batch_size, shuffle=True, num_workers=cfg.num_workers)
     dataloader_val = torch.utils.data.DataLoader(
-        dataset_val, batch_size=4, shuffle=False, num_workers=4)
+        dataset_val, batch_size=4, shuffle=False,
+        num_workers=min(4, cfg.num_workers))
 
     # create network
     if cfg.backbone == 'mobilevit':
@@ -223,8 +224,8 @@ if __name__ == '__main__':
     criterion = Loss(cfg.Weights)
 
     # set data parallel
-    if cfg.num_gpus > 1 and torch.cuda.is_available():
-        model = torch.nn.DataParallel(model)
+    # if cfg.num_gpus > 1 and torch.cuda.is_available():
+    model = torch.nn.DataParallel(model)
 
     # set device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
