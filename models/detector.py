@@ -1,5 +1,6 @@
 from cvnets.layers.upsample import UpSample
 from cvnets.models.classification.mobilevit import MobileViT
+from cvnets.models.segmentation.heads.deeplabv3 import DeeplabV3
 from torch import Tensor, nn
 
 from models.heads import Heads, HRMerge
@@ -25,6 +26,31 @@ class Detector(nn.Module):
     def init_weights(self, pretrained=None):
         self.backbone.init_weights(pretrained)
         self.merge.init_weights()
+
+
+class MobileViTDeeplabDetector(nn.Module):
+    """ Detector variant with MobileViT Deeplab as backbone
+
+    MobileViT expects 256x256 image inputs, outputs 160 or 640 channels.
+    Heads expect 256-channel input (as trained by authors, but adjustable).
+    """
+    def __init__(self, opts, encoder_weights=None):
+        super().__init__()
+        self.encoder = MobileViT(opts)
+        self.init_weights(encoder_weights=encoder_weights)
+        self.decoder = DeeplabV3(opts, enc_conf=self.encoder.model_conf_dict)
+        self.heads = Heads()
+
+    def forward(self, x):
+        x = self.encoder.extract_end_points_all(x)
+        x = self.decoder(enc_out=x)
+        x = self.heads(x)
+        return x
+
+    def init_weights(self, encoder_weights=None):
+        if encoder_weights is not None:
+            self.encoder.load_state_dict(encoder_weights, strict=False)
+
 
 
 class MobileViTBackbone(nn.Module):
