@@ -36,13 +36,13 @@ pip install -r requirements.txt
 
 ## Using MobileViT backbone
 
-Clone ml-cvnets repo as a sibling to this directory and install it. Pass the
-`--backbone` flag to the test.py script.
+Clone ml-cvnets repo as a sibling to this directory and install it, along with
+its dependencies. Pass the `--backbone` flag to the test.py script.
 
 ``` bash
 git clone git@github.com:apple/ml-cvnets.git ../ml-cvnets
 pip install -e ../ml-cvnets
-
+pip install -r ../ml-cvnets/requirements.txt
 ```
 
 ## Data Preparation

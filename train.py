@@ -139,8 +139,8 @@ def run_val(model, criterion, dataloader, accumulators, logger, writer, epoch, d
                     f'./checkpoints/checkpoints_{cfg.model_name}/best.pt')
         logger.info(f'best_acc:{best_acc}, info:{best_info}')
 
-def parse():
-    parser = argparse.ArgumentParser()
+def parse(parser: argparse.ArgumentParser = None) -> argparse.ArgumentParser:
+    parser = parser or argparse.ArgumentParser()
     
     parser.add_argument('--model_name', type=str, default='s3d', required=True, help='the model name')
     parser.add_argument('--data', type=str, default='Structured3D', choices=['Structured3D', 'SUNRGBD'])
@@ -159,7 +159,7 @@ def parse():
 
 if __name__ == '__main__':
     with open('cfg.yaml', 'r') as f:
-        config = yaml.load(f)
+        config = yaml.safe_load(f)
         cfg = EasyDict(config)
     args = parse()
     cfg.update(vars(args))
