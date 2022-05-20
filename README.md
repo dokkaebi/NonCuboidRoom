@@ -24,7 +24,7 @@ IEEE/CVF Winter Conference on Applications of Computer Vision (WACV), 2022
 
 ``` bash
 # create conda env
-conda create -n layout python=3.10
+conda create -n layout python=3.9
 # activate conda env
 conda activate layout
 # install pytorch
