@@ -1,4 +1,6 @@
+import os
 import numpy as np
+from sympy import arg
 import torch
 import yaml
 from easydict import EasyDict
@@ -9,7 +11,8 @@ from collections import OrderedDict
 
 from datasets import NYU303, CustomDataset, Structured3D
 from models import (ConvertLayout, Detector, DisplayLayout, display2Dseg, Loss,
-                    Reconstruction, _validate_colormap, post_process)
+                    MobileViTDetector, Reconstruction, _validate_colormap,
+                    post_process)
 from scipy.optimize import linear_sum_assignment
 
 
@@ -362,14 +365,16 @@ def test_custom(model, criterion, dataloader, device, cfg):
                 DisplayLayout(img, seg, depth, polys, _seg, _depth, _polys, inputs['iseg'][i].cpu().numpy(),
                     inputs['ilbox'][i].cpu().numpy(), iters)
 
-def parse():
-    parser = argparse.ArgumentParser()
+def parse(parser: argparse.ArgumentParser = None) -> argparse.ArgumentParser:
+    parser = parser or argparse.ArgumentParser()
 
     parser.add_argument('--data', type=str, default='Structured3D', choices=['Structured3D', 'NYU303', 'CUSTOM'])
     parser.add_argument('--pretrained', type=str, default=None, required=True, help='the pretrained model')
     parser.add_argument('--visual', action='store_true', help='whether to visual the results')
     parser.add_argument('--exam', action='store_true', help='test one example on nyu303 dataset')
     parser.add_argument('--num_workers', type=int, default=0)
+    parser.add_argument('--backbone', type=str, default='hrnet', choices=['hrnet', 'mobilevit'])
+    parser.add_argument('--backbone-weights', type=str, default='checkpoints/mobilevit_s.pt')
 
     args = parser.parse_args()
     return args
@@ -395,20 +400,47 @@ if __name__ == '__main__':
 
     dataloader = torch.utils.data.DataLoader(dataset, num_workers=cfg.num_workers)
 
-    # create network
-    model = Detector()
+    if cfg.backbone == 'mobilevit':
+        # Supports a different set of options. Re-parse args.
+        from options.opts import get_training_arguments
+        from options.utils import load_config_file
+
+        parser = get_training_arguments(parse_args=False)
+        parser.add_argument('--cvnets-dir', default='../ml-cvnets')
+        opts = parse(parser)
+
+        if not getattr(opts, 'common.config_file', None):
+            config_file = os.path.join(
+                opts.cvnets_dir, 'config/classification/mobilevit_small.yaml')
+            setattr(opts, 'common.config_file', config_file)
+        opts = load_config_file(opts)
+
+        if cfg.pretrained:
+            model = MobileViTDetector(opts)
+            state_dict = torch.load(cfg.pretrained,
+                                    map_location=torch.device('cpu'))
+            model.load_state_dict(state_dict)
+        else:
+            vit_weights = torch.load(
+                opts.backbone_weights, map_location=torch.device('cpu'))
+            model = MobileViTDetector(opts, vit_weights=vit_weights)
+
+    elif cfg.backbone == 'hrnet':
+        # create network
+        model = Detector()
+
+        # reload weights
+        if cfg.pretrained:
+            state_dict = torch.load(cfg.pretrained,
+                                    map_location=torch.device('cpu'))
+            model.load_state_dict(state_dict)
+
     # compute loss
     criterion = Loss(cfg.Weights)
 
     # set data parallel
     # if cfg.num_gpus > 1 and torch.cuda.is_available():
     #     model = torch.nn.DataParallel(model)
-
-    # reload weights
-    if cfg.pretrained:
-        state_dict = torch.load(cfg.pretrained,
-                                map_location=torch.device('cpu'))
-        model.load_state_dict(state_dict)
 
     # set device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
