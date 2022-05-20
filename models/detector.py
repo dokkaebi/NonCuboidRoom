@@ -1,3 +1,4 @@
+from cvnets.layers.upsample import UpSample
 from cvnets.models.classification.mobilevit import MobileViT
 from torch import Tensor, nn
 
@@ -123,6 +124,8 @@ class MobileViTBackbone(nn.Module):
         self.encoder.classifier = None
         self.encoder.conv_1x1_exp = None
 
+        self.upsample = UpSample(scale_factor=8, mode="bilinear", align_corners=False)
+
         # I think this will be 8x8x160 at this point
         # be sure to ouptut the correct shape - Heads need 256 channels
         self.merge = HRMerge(
@@ -133,8 +136,10 @@ class MobileViTBackbone(nn.Module):
         # use self.encoder.extract_end_points_all(Tensor) -> Dict
         # want to return a Tensor for use in later layers
 
-        x = self.encoder.extract_end_points_all(x)['out_l5']
-        x = self.merge([x])
+        x = self.encoder.extract_end_points_all(x)
+        x = x['out_l5']  # Bx160x12x20
+        x = self.upsample(x)  # Bx160x96x160
+        x = self.merge([x])  # Bx256x96x160
         return x
 
     def init_weights(self, weights=None):
