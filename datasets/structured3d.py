@@ -35,6 +35,9 @@ class Structured3D(data.Dataset):
             # handle some missing scenes
             if 1600 <= scene < 1800 or scene == 3499:
                 continue
+            # this image is corrupted
+            if img_name == 'scene_00444_966601_1.png':
+                continue
             if scene <= 2999:
                 self.data_set['training'].append(i)
             elif scene <= 3249:
