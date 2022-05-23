@@ -1,4 +1,5 @@
 import copy
+from math import ceil
 import os
 import random
 
@@ -29,8 +30,9 @@ def train(model, criterion, dataloader, dataloader_val, optimizer, scheduler, cf
         run_train(model, criterion, optimizer, dataloader,
                   accumulators_train, logger, writer_train, epoch, device, cfg)
         # run one validation
-        run_val(model, criterion, dataloader_val,
-                accumulators_val, logger, writer_val, epoch, device, cfg)
+        with torch.no_grad():
+            run_val(model, criterion, dataloader_val,
+                    accumulators_val, logger, writer_val, epoch, device, cfg)
         # adjust lr
         scheduler.step()
 
@@ -167,6 +169,21 @@ if __name__ == '__main__':
     torch.manual_seed(123)
     np.random.seed(123)
     torch.cuda.manual_seed(123)
+
+    # slurm setup
+    if torch.cuda.is_available():
+        config.num_gpus = torch.cuda.device_count()
+        gpu_mem = sum([
+            torch.cuda.get_device_properties(i).total_memory
+            for i in range(config.num_gpus)
+        ]) / 1024 / 1024 / 1024
+        # we need around 1GB per batch size
+        batch_size = ceil(gpu_mem * 0.8)
+        if batch_size < config.batch_size:
+            print(f'changing batch size {config.batch_size} -> {batch_size}')
+        config.batch_size = batch_size
+        if config.batch_size > 24:
+            config.Solver.lr = .0001 * (config.batch_size / 24 / 2)
 
     #  dataset
     if cfg.data == 'Structured3D':
