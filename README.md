@@ -34,6 +34,9 @@ conda install pytorch==1.11.0 torchvision==0.12.0 cudatoolkit=11.3 -c pytorch
 pip install -r requirements.txt
 ```
 
+Note: in case of a "Failed building wheel for numba" error, try installing it
+with conda: `conda install numba -c conda-forge`, then re-running pip install.
+
 ## Using MobileViT backbone
 
 Clone ml-cvnets repo as a sibling to this directory and install it, along with
