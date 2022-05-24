@@ -6,7 +6,7 @@ import argparse
 import os, struct, sys
 import numpy as np
 import zlib
-import imageio
+import imageio.v2 as imageio
 import cv2
 
 COMPRESSION_TYPE_COLOR = {-1:'unknown', 0:'raw', 1:'png', 2:'jpeg'}
@@ -20,9 +20,8 @@ class RGBDFrame():
     self.timestamp_depth = struct.unpack('Q', file_handle.read(8))[0]
     self.color_size_bytes = struct.unpack('Q', file_handle.read(8))[0]
     self.depth_size_bytes = struct.unpack('Q', file_handle.read(8))[0]
-    self.color_data = ''.join(struct.unpack('c'*self.color_size_bytes, file_handle.read(self.color_size_bytes)))
-    self.depth_data = ''.join(struct.unpack('c'*self.depth_size_bytes, file_handle.read(self.depth_size_bytes)))
-
+    self.color_data = b''.join(struct.unpack('c'*self.color_size_bytes, file_handle.read(self.color_size_bytes)))
+    self.depth_data = b''.join(struct.unpack('c'*self.depth_size_bytes, file_handle.read(self.depth_size_bytes)))
 
   def decompress_depth(self, compression_type):
     if compression_type == 'zlib_ushort':
@@ -30,17 +29,14 @@ class RGBDFrame():
     else:
        raise
 
-
   def decompress_depth_zlib(self):
     return zlib.decompress(self.depth_data)
-
 
   def decompress_color(self, compression_type):
     if compression_type == 'jpeg':
        return self.decompress_color_jpeg()
     else:
        raise
-
 
   def decompress_color_jpeg(self):
     return imageio.imread(self.color_data)
@@ -57,7 +53,7 @@ class SensorData:
       version = struct.unpack('I', f.read(4))[0]
       assert self.version == version
       strlen = struct.unpack('Q', f.read(8))[0]
-      self.sensor_name = ''.join(struct.unpack('c'*strlen, f.read(strlen)))
+      self.sensor_name = b''.join(struct.unpack('c'*strlen, f.read(strlen)))
       self.intrinsic_color = np.asarray(struct.unpack('f'*16, f.read(16*4)), dtype=np.float32).reshape(4, 4)
       self.extrinsic_color = np.asarray(struct.unpack('f'*16, f.read(16*4)), dtype=np.float32).reshape(4, 4)
       self.intrinsic_depth = np.asarray(struct.unpack('f'*16, f.read(16*4)), dtype=np.float32).reshape(4, 4)
@@ -76,6 +72,11 @@ class SensorData:
         frame.load(f)
         self.frames.append(frame)
 
+  def save_mat_to_file(self, matrix, filename):
+    with open(filename, 'w') as f:
+      for line in matrix:
+        np.savetxt(f, line[np.newaxis], fmt='%f')
+
   def export_color_images(self, output_path, image_size=None, frame_skip=1):
     if not os.path.exists(output_path):
       os.makedirs(output_path)
@@ -92,8 +93,6 @@ class SensorData:
     print('exporting camera intrinsics to', output_path)
     self.save_mat_to_file(self.intrinsic_color, os.path.join(output_path, 'intrinsic_color.txt'))
     self.save_mat_to_file(self.extrinsic_color, os.path.join(output_path, 'extrinsic_color.txt'))
-    self.save_mat_to_file(self.intrinsic_depth, os.path.join(output_path, 'intrinsic_depth.txt'))
-    self.save_mat_to_file(self.extrinsic_depth, os.path.join(output_path, 'extrinsic_depth.txt'))
 
 
 def main():
