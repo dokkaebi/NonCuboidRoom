@@ -5,6 +5,7 @@
 import argparse
 import os, struct, sys
 import numpy as np
+from tqdm import tqdm
 import zlib
 import imageio.v2 as imageio
 import cv2
@@ -44,55 +45,78 @@ class RGBDFrame():
 
 class SensorData:
 
-  def __init__(self, filename):
-    self.version = 4
-    self.load(filename)
+    def __init__(self, filename):
+        self.version = 4
+        self.load(filename)
 
-  def load(self, filename):
-    with open(filename, 'rb') as f:
-      version = struct.unpack('I', f.read(4))[0]
-      assert self.version == version
-      strlen = struct.unpack('Q', f.read(8))[0]
-      self.sensor_name = b''.join(struct.unpack('c'*strlen, f.read(strlen)))
-      self.intrinsic_color = np.asarray(struct.unpack('f'*16, f.read(16*4)), dtype=np.float32).reshape(4, 4)
-      self.extrinsic_color = np.asarray(struct.unpack('f'*16, f.read(16*4)), dtype=np.float32).reshape(4, 4)
-      self.intrinsic_depth = np.asarray(struct.unpack('f'*16, f.read(16*4)), dtype=np.float32).reshape(4, 4)
-      self.extrinsic_depth = np.asarray(struct.unpack('f'*16, f.read(16*4)), dtype=np.float32).reshape(4, 4)
-      self.color_compression_type = COMPRESSION_TYPE_COLOR[struct.unpack('i', f.read(4))[0]]
-      self.depth_compression_type = COMPRESSION_TYPE_DEPTH[struct.unpack('i', f.read(4))[0]]
-      self.color_width = struct.unpack('I', f.read(4))[0]
-      self.color_height =  struct.unpack('I', f.read(4))[0]
-      self.depth_width = struct.unpack('I', f.read(4))[0]
-      self.depth_height =  struct.unpack('I', f.read(4))[0]
-      self.depth_shift =  struct.unpack('f', f.read(4))[0]
-      num_frames =  struct.unpack('Q', f.read(8))[0]
-      self.frames = []
-      for i in range(num_frames):
-        frame = RGBDFrame()
-        frame.load(f)
-        self.frames.append(frame)
+    def load(self, filename):
+        with open(filename, 'rb') as f:
+            version = struct.unpack('I', f.read(4))[0]
+            assert self.version == version
+            strlen = struct.unpack('Q', f.read(8))[0]
+            self.sensor_name = b''.join(struct.unpack('c'*strlen, f.read(strlen)))
+            self.intrinsic_color = np.asarray(struct.unpack('f'*16, f.read(16*4)), dtype=np.float32).reshape(4, 4)
+            self.extrinsic_color = np.asarray(struct.unpack('f'*16, f.read(16*4)), dtype=np.float32).reshape(4, 4)
+            self.intrinsic_depth = np.asarray(struct.unpack('f'*16, f.read(16*4)), dtype=np.float32).reshape(4, 4)
+            self.extrinsic_depth = np.asarray(struct.unpack('f'*16, f.read(16*4)), dtype=np.float32).reshape(4, 4)
+            self.color_compression_type = COMPRESSION_TYPE_COLOR[struct.unpack('i', f.read(4))[0]]
+            self.depth_compression_type = COMPRESSION_TYPE_DEPTH[struct.unpack('i', f.read(4))[0]]
+            self.color_width = struct.unpack('I', f.read(4))[0]
+            self.color_height =  struct.unpack('I', f.read(4))[0]
+            self.depth_width = struct.unpack('I', f.read(4))[0]
+            self.depth_height =  struct.unpack('I', f.read(4))[0]
+            self.depth_shift =  struct.unpack('f', f.read(4))[0]
+            num_frames =  struct.unpack('Q', f.read(8))[0]
+            self.frames = []
+            print('loading frames...')
+            for i in tqdm(range(num_frames)):
+                frame = RGBDFrame()
+                frame.load(f)
+                self.frames.append(frame)
 
-  def save_mat_to_file(self, matrix, filename):
-    with open(filename, 'w') as f:
-      for line in matrix:
-        np.savetxt(f, line[np.newaxis], fmt='%f')
+    def save_mat_to_file(self, matrix, filename):
+        with open(filename, 'w') as f:
+            for line in matrix:
+                np.savetxt(f, line[np.newaxis], fmt='%f')
 
-  def export_color_images(self, output_path, image_size=None, frame_skip=1):
-    if not os.path.exists(output_path):
-      os.makedirs(output_path)
-    print('exporting', len(self.frames)//frame_skip, 'color frames to', output_path)
-    for f in range(0, len(self.frames), frame_skip):
-      color = self.frames[f].decompress_color(self.color_compression_type)
-      if image_size is not None:
-        color = cv2.resize(color, (image_size[1], image_size[0]), interpolation=cv2.INTER_NEAREST)
-      imageio.imwrite(os.path.join(output_path, str(f) + '.jpg'), color)
+    def export(self, output_path, image_size=None, frame_skip=1):
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+        print('exporting', len(self.frames)//frame_skip, 'color frames to', output_path)
+        for f in tqdm(range(0, len(self.frames), frame_skip)):
+            color = self.frames[f].decompress_color(self.color_compression_type)
+            if image_size is not None:
+                color = cv2.resize(color, (image_size[1], image_size[0]), interpolation=cv2.INTER_NEAREST)
+            imageio.imwrite(os.path.join(output_path, str(f) + '.jpg'), color)
 
-  def export_intrinsics(self, output_path):
-    if not os.path.exists(output_path):
-      os.makedirs(output_path)
-    print('exporting camera intrinsics to', output_path)
-    self.save_mat_to_file(self.intrinsic_color, os.path.join(output_path, 'intrinsic_color.txt'))
-    self.save_mat_to_file(self.extrinsic_color, os.path.join(output_path, 'extrinsic_color.txt'))
+        print('exporting camera intrinsics to', output_path)
+        mat = self.intrinsic_color.copy()
+        if image_size is not None:
+            sw = image_size[0] / self.color_width
+            sh = image_size[1] / self.color_height
+            mat[0][0] *= sw
+            mat[1][1] *= sh
+            mat[0][2] *= sw
+            mat[1][2] *= sh
+        self.save_mat_to_file(mat, os.path.join(output_path, 'intrinsic_color.txt'))
+
+
+    def export_color_images(self, output_path, image_size=None, frame_skip=1):
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+        print('exporting', len(self.frames)//frame_skip, 'color frames to', output_path)
+        for f in tqdm(range(0, len(self.frames), frame_skip)):
+            color = self.frames[f].decompress_color(self.color_compression_type)
+            if image_size is not None:
+                color = cv2.resize(color, (image_size[1], image_size[0]), interpolation=cv2.INTER_NEAREST)
+            imageio.imwrite(os.path.join(output_path, str(f) + '.jpg'), color)
+
+    def export_intrinsics(self, output_path):
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+        print('exporting camera intrinsics to', output_path)
+        self.save_mat_to_file(self.intrinsic_color, os.path.join(output_path, 'intrinsic_color.txt'))
+        self.save_mat_to_file(self.extrinsic_color, os.path.join(output_path, 'extrinsic_color.txt'))
 
 
 def main():
@@ -101,22 +125,19 @@ def main():
     # data paths
     parser.add_argument('--filename', required=True, help='path to sens file to read')
     parser.add_argument('--output_path', required=True, help='path to output folder')
-    parser.add_argument('--export_color_images', dest='export_color_images', action='store_true')
-    parser.add_argument('--export_intrinsics', dest='export_intrinsics', action='store_true')
 
     opt = parser.parse_args()
     print(opt)
 
     if not os.path.exists(opt.output_path):
         os.makedirs(opt.output_path)
-  # load the data
-    sys.stdout.write('loading %s...' % opt.filename)
+    # load the data
+    print(f'loading {opt.filename}...')
     sd = SensorData(opt.filename)
-    sys.stdout.write('loaded!\n')
-    if opt.export_color_images:
-        sd.export_color_images(os.path.join(opt.output_path, 'color'))
-    if opt.export_intrinsics:
-        sd.export_intrinsics(os.path.join(opt.output_path, 'intrinsic'))
+    print('loaded!')
+    # 640x478 is the correct input size for the NonCuboidRoom model:
+    # 640w matches other input specs, and 478 matches input aspect ratio
+    sd.export(os.path.join(opt.output_path), image_size=(478, 640))
 
 
 if __name__ == '__main__':
