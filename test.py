@@ -211,8 +211,8 @@ def test_structured3d(model, criterion, dataloader, device, cfg):
             inputs[key] = value.to(device)
 
         # forward
-        x = model(inputs['img'])
-        loss, loss_stats = criterion(x, **inputs)
+        with torch.no_grad():
+            x = model(inputs['img'])
 
         # post process on output feature map size and extract plane and line detection results
         dt_planes, dt_lines, dt_params3d_instance, dt_params3d_pixelwise = post_process(x, Mnms=1)
@@ -269,8 +269,8 @@ def test_nyu303(model, criterion, dataloader, device, cfg):
         for key, value in inputs.items():
             inputs[key] = value.to(device)
         # forward
-        x = model(inputs['img'])
-        loss, loss_stats = criterion(x)
+        with torch.no_grad():
+            x = model(inputs['img'])
 
         # post process on output feature map size
         dt_planes, dt_lines, dt_params3d_instance, dt_params3d_pixelwise = post_process(x, Mnms=1)
@@ -325,8 +325,8 @@ def test_custom(model, criterion, dataloader, device, cfg):
         for key, value in inputs.items():
             inputs[key] = value.to(device)
         # forward
-        x = model(inputs['img'])
-        loss, loss_stats = criterion(x)
+        with torch.no_grad():
+            x = model(inputs['img'])
 
         # post process on output feature map size, and extract planes, lines, plane params instance and plane params pixelwise
         dt_planes, dt_lines, dt_params3d_instance, dt_params3d_pixelwise = post_process(x, Mnms=1)
