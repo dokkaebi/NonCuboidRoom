@@ -33,7 +33,13 @@ class Structured3D(data.Dataset):
             img_name = i[0]
             scene = int(img_name.split('_')[1])
             # handle some missing scenes
-            if 1600 <= scene < 1800 or scene == 3499:
+            if 1600 <= scene < 1800:
+                continue
+            if scene == 1155:
+                continue
+            if scene == 1816:
+                continue
+            if scene >= 3384 and scene <= 3499:
                 continue
             # this image is corrupted
             if img_name == 'scene_00444_966601_1.png':
