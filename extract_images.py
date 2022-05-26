@@ -5,6 +5,7 @@
 import argparse
 import os, struct, sys
 import numpy as np
+import shutil
 from tqdm import tqdm
 import zlib
 import imageio.v2 as imageio
@@ -124,21 +125,37 @@ def main():
     parser = argparse.ArgumentParser()
     # data paths
     parser.add_argument('--filename', required=True, help='path to sens file to read')
-    parser.add_argument('--output_path', required=True, help='path to output folder')
+    parser.add_argument('--out_dir', required=True, help='path to output folder')
+    parser.add_argument('--tmp_dir', help='optional temp dir')
 
     opt = parser.parse_args()
     print(opt)
 
-    if not os.path.exists(opt.output_path):
-        os.makedirs(opt.output_path)
+    out_path = opt.tmp_dir or opt.out_dir
+    sens_name = os.path.basename(opt.filename).replace('.sens', '')
+    out_path = os.path.join(out_path, sens_name)
+
+    in_path = opt.filename
+    if opt.tmp_dir:
+        shutil.copy(in_path, opt.tmp_dir)
+        in_path = os.path.join(opt.tmp_dir, os.path.basename(opt.filename))
+
+    if not os.path.exists(opt.out_dir):
+        os.makedirs(opt.out_dir)
+    if opt.tmp_dir and not os.path.exists(opt.tmp_dir):
+        os.makedirs(opt.tmp_dir)
+
     # load the data
-    print(f'loading {opt.filename}...')
-    sd = SensorData(opt.filename)
+    print(f'loading {in_path}...')
+    sd = SensorData(in_path)
     print('loaded!')
+
     # 640x478 is the correct input size for the NonCuboidRoom model:
     # 640w matches other input specs, and 478 matches input aspect ratio
-    sd.export(os.path.join(opt.output_path), image_size=(478, 640))
+    sd.export(out_path, image_size=(478, 640))
 
+    if opt.tmp_dir:
+        shutil.move(out_path, opt.out_dir)
 
 if __name__ == '__main__':
     main()
