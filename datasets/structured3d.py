@@ -39,7 +39,7 @@ class Structured3D(data.Dataset):
                 continue
             if scene == 1816:
                 continue
-            if scene >= 3384 and scene <= 3499:
+            if scene >= 3383:
                 continue
             # this image is corrupted
             if img_name == 'scene_00444_966601_1.png':
