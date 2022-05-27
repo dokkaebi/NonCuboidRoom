@@ -10,6 +10,13 @@ epochs: 51
 lr_step: [30, 40]
 
 Dataset:
+  Scannet:
+    colorjitter: True
+    downsample: 4
+    input_h: 478
+    input_w: 640
+    max_objs: 20
+
   Structured3D:
     colorjitter: True
     downsample: 4
