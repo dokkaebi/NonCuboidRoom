@@ -414,7 +414,8 @@ def test(model, dataloader, device, cfg, criterion):
             inputs[key] = value.to(device)
 
         # forward
-        x = model(inputs['img'])
+        with torch.no_grad():
+            x = model(inputs['img'])
 
         # post process on output feature map size and extract plane and line detection results
         dt_planes, dt_lines, dt_params3d_instance, dt_params3d_pixelwise = post_process(x, Mnms=1)
