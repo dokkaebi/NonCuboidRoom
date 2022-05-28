@@ -14,7 +14,7 @@ from scipy.optimize import linear_sum_assignment
 from collections import OrderedDict
 from datasets.structured3d import Structured3D
 from datasets.scannet import ScannetDataset
-from models.detector import MobileViTDetector, MobileViTDeeplabDetector
+from models.detector import MobileNetDeeplabDetector, MobileViTDeeplabDetector
 from models.loss import TSLoss
 
 from models import (AverageMeter, Detector, Loss, evaluate, get_optimizer,
@@ -154,8 +154,8 @@ def parse(parser: argparse.ArgumentParser = None) -> argparse.ArgumentParser:
     parser.add_argument('--model_name', type=str, default='s3d', required=True, help='the model name')
     parser.add_argument('--data', type=str, default='Structured3D', choices=['Structured3D', 'SUNRGBD'])
     parser.add_argument('--pretrained', type=str, default=None, help='the pretrained model')
-    parser.add_argument('--backbone', type=str, default='hrnet', choices=['hrnet', 'mobilevit', 'deeplab'])
-    parser.add_argument('--backbone-weights', type=str, default='checkpoints/mobilevit_s.pt')
+    parser.add_argument('--backbone', type=str, default='hrnet', choices=['hrnet', 'mobilenet', 'deeplab'])
+    parser.add_argument('--backbone_weights', type=str, default='checkpoints/mobilevit_s.pt')
     parser.add_argument('--teacher_weights', default='checkpoints/NYU303_pretrained.pt')
 
     parser.add_argument('--split', type=str, default='all', choices=['all', 'nyu'], help='the training set for SUNRGBD')
@@ -210,7 +210,9 @@ if __name__ == '__main__':
 
 
     # create network
-    if cfg.backbone == 'mobilevit':
+    if cfg.backbone == 'mobilenet':
+        # MobileNetV2 backbone with Deeplab encoder
+
         # Supports a different set of options. Re-parse args.
         from options.opts import get_training_arguments
         from options.utils import load_config_file
@@ -219,21 +221,18 @@ if __name__ == '__main__':
         parser.add_argument('--cvnets-dir', default='../ml-cvnets')
         opts = parse(parser)
 
-        if not getattr(opts, 'common.config_file', None):
-            config_file = os.path.join(
-                opts.cvnets_dir, 'config/classification/mobilevit_small.yaml')
-            setattr(opts, 'common.config_file', config_file)
+        setattr(opts, 'common.config_file', 'config/deeplabv3_mobilenetv2.yaml')
         opts = load_config_file(opts)
 
         if cfg.pretrained:
-            model = MobileViTDetector(opts)
+            model = MobileNetDeeplabDetector(opts)
             state_dict = torch.load(cfg.pretrained,
                                     map_location=torch.device('cpu'))
             model.load_state_dict(state_dict)
         else:
-            vit_weights = torch.load(
+            backbone_weights = torch.load(
                 opts.backbone_weights, map_location=torch.device('cpu'))
-            model = MobileViTDetector(opts, vit_weights=vit_weights)
+            model = MobileNetDeeplabDetector(opts, encoder_weights=backbone_weights)
 
     elif cfg.backbone == 'deeplab':
         # Supports a different set of options. Re-parse args.
