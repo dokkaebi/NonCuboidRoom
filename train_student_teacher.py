@@ -53,7 +53,7 @@ def run_train(model, teacher, criterion, optimizer, dataloader, accumulators, lo
         # forward
         x = model(inputs['img'])
         y = teacher(inputs['img'])
-        loss, loss_stats = criterion(x, **inputs)
+        loss, loss_stats = criterion(x, y)
         # optmizer
         optimizer.zero_grad()
         loss.backward()
