@@ -22,7 +22,18 @@ class ScannetDataset(data.Dataset):
             tf.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
         self.files = files
-        self.filenames = glob(os.path.join(files, '**', '*.jpg'), recursive=True)
+        self.filenames = []
+        for dirpath, dirnames, filenames in os.walk(files):
+            jpgs, pts = [], []
+            for f in filenames:
+                if f.endswith('jpg'):
+                    jpgs.append(f)
+                elif f.endswith('.pt'):
+                    pts.append(f)
+            self.filenames += [
+                os.path.join(dirpath, f) for f in jpgs
+                if f.replace('.jpg', '.pt') not in pts
+            ]
         self.Ks = {}  # {scene_name: ndarray (3,3)}
         self.Kinvs = {}  # {scene_name: ndarray (3,3)}
 

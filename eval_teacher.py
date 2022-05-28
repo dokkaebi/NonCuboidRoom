@@ -211,16 +211,23 @@ def bbox_ctr(pts):
     ]
 
 def find_inds(ups, downs, pwalls, pfloor, pceiling, size, downsample=4):
-    _, w = size
+    if not len(ups):
+        print('no ups')
+        return torch.tensor(np.zeros((0,)), dtype=torch.int64)
+    h, w = size
+    ih, iw = h * downsample, w * downsample
     centers = []
 
     ups = np.array(ups).astype(np.int32)
+    ups[:, 0] = np.clip(ups[:, 0], 0, h)
+    ups[:, 1] = np.clip(ups[:, 1], 0, w)
     downs = np.array(downs).astype(np.int32)
+    downs[:, 0] = np.clip(downs[:, 0], 0, h)
+    downs[:, 1] = np.clip(downs[:, 1], 0, w)
     centers.append(bbox_ctr(ups) if len(pceiling) > 0 else [-1, -1])
     centers.append(bbox_ctr(downs) if len(pfloor) > 0 else [-1, -1])
 
     assert len(ups) == len(pwalls) + 1
-    j = -1
     for i in range(len(ups)-1):
         u0 = ups[i]
         u1 = ups[i+1]
@@ -229,18 +236,22 @@ def find_inds(ups, downs, pwalls, pfloor, pceiling, size, downsample=4):
         if pwalls[i] is None:
             assert i > 0 and i < len(ups)-2
             continue
-        else:
-            j = j + 1
-        
         pts = np.array([u0, d0, d1, u1])
         centers.append(bbox_ctr(pts))
 
+    #centers = [
+    #    c for c in centers if c[0] <= ih and c[1] <= iw
+    #]
     ct = np.array(centers, dtype=np.float32) / downsample
-    # ct_int = ct.astype(np.int32)
     ct_int = torch.tensor(ct, dtype=torch.int64)
-    return ct_int[:, 1] * w + ct_int[:, 0]
+    ret = ct_int[:, 1] * w + ct_int[:, 0]
+    if ret.max() >= w*h:
+        print(centers)
+        print(ct)
+        print(ret)
+    return ret
 
-def targets_from_model_out(inputs, outputs, seg, ups, downs, dt_lines, inds, depth):
+def targets_from_model_out(inputs, outputs, seg, ups, downs, dt_lines, inds, depth, device):
 
     upsample = 1
     downsample = 4
@@ -269,7 +280,7 @@ def targets_from_model_out(inputs, outputs, seg, ups, downs, dt_lines, inds, dep
     # reconstruction.PreProcess()
     # filters planes output from post_process to threshold values, splits
     # into walls / floor / ceiling
-    # 
+    #
 
     # line_hm
     # example endpoint: [308.44584340438365, 359.5, 308.4105742802468, 28.842726503181716]
@@ -281,7 +292,7 @@ def targets_from_model_out(inputs, outputs, seg, ups, downs, dt_lines, inds, dep
     #     line = np.reshape(line, [2, 2])
     #     line_gaussian(line_hm, line, 2)
     #
-    # reconstruction.py:390 
+    # reconstruction.py:390
     # example dtl=array([ -7.3940454, 392.09537  ,   9.913257 ], dtype=float32)
     #                        m            b           confidence
     #      dtl = dtls[i]  # x=my+b
@@ -298,10 +309,10 @@ def targets_from_model_out(inputs, outputs, seg, ups, downs, dt_lines, inds, dep
     reg_mask[:len(inds)] = inds >= 0
     ind = np.zeros((20,), dtype=np.int64)
     ind[:len(inds)] = np.maximum(0, inds)
-    ind = torch.tensor(ind, dtype=torch.int64).unsqueeze(0)
+    ind = torch.tensor(ind, dtype=torch.int64).unsqueeze(0).to(device)
 
     params3d = _transpose_and_gather_feat(
-        outputs['plane_params_instance'], ind).detach().numpy()[0]
+        outputs['plane_params_instance'], ind).detach().cpu().numpy()[0]
 
     oseg = cv2.resize(seg, (ow, oh), interpolation=cv2.INTER_NEAREST)
     odepth = cv2.resize(depth, (ow, oh), interpolation=cv2.INTER_NEAREST)
@@ -315,7 +326,7 @@ def targets_from_model_out(inputs, outputs, seg, ups, downs, dt_lines, inds, dep
     plane_wh = _transpose_and_gather_feat(outputs['plane_wh'], ind)
     plane_offset = _transpose_and_gather_feat(outputs['plane_offset'], ind)
 
-    
+
     result = {
         # values that are compared directly in Loss can just be copied
         'plane_hm': outputs['plane_center'],
@@ -361,7 +372,7 @@ def targets_from_model_out(inputs, outputs, seg, ups, downs, dt_lines, inds, dep
 
         # how to generate these?
         # w, h here are size of image after downsampling by config.downsample
-        
+
         # same name, but maybe not directly comparable
         # loss selects from plane_wh / plane_offset using batch['ind'] and reshapes
         'plane_wh': plane_wh,
@@ -433,6 +444,8 @@ def test(model, dataloader, device, cfg, criterion):
                 cat='opt',
             )
 
+            inds = find_inds(ups, downs, params_layout, pfloor, pceiling, x['plane_params_instance'].shape[-2:])
+
             # convert opt results to segmentation and depth map and evaluate results
             seg, depth, img, polys = ConvertLayout(
                 inputs['img'][i], ups, downs, attribution,
@@ -442,12 +455,10 @@ def test(model, dataloader, device, cfg, criterion):
                 valid=inputs['iseg'][i].cpu().numpy(),
                 oxy1map=inputs['oxy1map'][i].cpu().numpy(), pixelwise=None)
 
-            inds = find_inds(ups, downs, params_layout, pfloor, pceiling, x['plane_params_instance'].shape[-2:])
-
-            targets = targets_from_model_out(inputs, x, seg, ups, downs, dt_lines[0], inds, depth)
+            targets = targets_from_model_out(inputs, x, seg, ups, downs, dt_lines[0], inds, depth, device)
             for k, v in targets.items():
                 if not isinstance(v, torch.Tensor):
-                    v = torch.tensor(v)
+                    v = torch.tensor(v).to(device)
                 if v.shape[0] != 1:
                     # insert batch dimension
                     v = v.unsqueeze(0)
