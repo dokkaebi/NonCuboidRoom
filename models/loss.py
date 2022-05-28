@@ -152,6 +152,30 @@ class DepthLoss(nn.Module):
         return loss
 
 
+class TSLoss(torch.nn.Module):
+    """ Loss used for teacher-student training """
+    def __init__(self, cfg, factor=1):
+        super(TSLoss, self).__init__()
+        self.smooth_l1 = torch.nn.SmoothL1Loss()
+
+    def forward(self, outputs, targets):
+        keys = [
+            'plane_center',
+            'plane_wh',
+            'plane_offset',
+            'plane_params_pixelwise',
+            'plane_params_instance',
+            'line_region',
+            'line_params',
+        ]
+        stats = {
+            key: self.smooth_l1(outputs[key], targets[key])
+            for key in keys
+        }
+        loss = torch.sum(stats.values())
+        return loss, stats
+
+
 class Loss(torch.nn.Module):
     def __init__(self, cfg, factor=1):
         super(Loss, self).__init__()

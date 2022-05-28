@@ -10,30 +10,35 @@ from torch.utils import data
 
 
 class ScannetDataset(data.Dataset):
+    """ Images extracted from Scannet sens files. 
+    
+    Images are returned in a stable order, and will be the same for
+    a given combination of `files` and `skip`. """
     image_size = (640, 478)  # (w, h)
 
-    def __init__(self, config, phase='test', files='data/scannet/images'):
+    def __init__(self, config, files='data/scannet/images', skip=60):
         self.config = config
-        self.phase = phase
+        self.files = files
+        self.skip = skip
         self.max_objs = config.max_objs
         self.transforms = tf.Compose([
             tf.ToTensor(),
             # TODO: correct values?
             tf.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
-        self.files = files
         self.filenames = []
+        # Each dir visited is a scan (e.g., scan0123_00).
+        # Each contains a BUNCH of images that are consecutive
+        # frames of video, 1.jpg 2.jpg ... 15.jpg ... 5432.jpg.
         for dirpath, dirnames, filenames in os.walk(files):
-            jpgs, pts = [], []
-            for f in filenames:
-                if f.endswith('jpg'):
-                    jpgs.append(f)
-                elif f.endswith('.pt'):
-                    pts.append(f)
-            self.filenames += [
-                os.path.join(dirpath, f) for f in jpgs
-                if f.replace('.jpg', '.pt') not in pts
-            ]
+            dirnames.sort()
+            nums = sorted([
+                int(f.replace('.jpg', ''))
+                for f in filenames
+                if f.endswith('.jpg')
+            ])
+            for i in nums[::self.skip]:
+                self.filenames.append(os.path.join(dirpath, f'{i}.jpg'))
         self.Ks = {}  # {scene_name: ndarray (3,3)}
         self.Kinvs = {}  # {scene_name: ndarray (3,3)}
 
@@ -65,29 +70,8 @@ class ScannetDataset(data.Dataset):
         img = np.array(img)[:, :, [0, 1, 2]]
         img, inh, inw = self.padimage(img)
         img = self.transforms(img)
-        ret = {'img': img}
 
-        ret['intri'] = self.Ks[scan_name]
-        ret['intri_inv'] = self.Kinvs[scan_name]
-
-        oh, ow = ceil(inh / self.config.downsample), ceil(inw / self.config.downsample)
-        x = np.arange(ow * 8)
-        y = np.arange(oh * 8)
-        xx, yy = np.meshgrid(x, y)
-        xymap = np.stack([xx, yy], axis=2).astype(np.float32)
-        oxymap = cv2.resize(xymap, (ow, oh), interpolation=cv2.INTER_LINEAR)
-        oxy1map = np.concatenate([
-            oxymap, np.ones_like(oxymap[:, :, :1])], axis=-1).astype(np.float32)
-        ret['oxy1map'] = oxy1map
-
-        ixymap = cv2.resize(xymap, (inw, inh), interpolation=cv2.INTER_LINEAR)
-        ixy1map = np.concatenate([
-            ixymap, np.ones_like(ixymap[:, :, :1])], axis=-1).astype(np.float32)
-        ret['ixy1map'] = ixy1map
-        ret['iseg'] = np.ones([inh, inw])
-        ret['ilbox'] = np.zeros(20)
-
-        return ret, filename
+        return img
 
     def __len__(self):
         return len(self.filenames)
