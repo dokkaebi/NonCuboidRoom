@@ -24,7 +24,7 @@ best_acc = 0
 best_info = ''
 
 
-def train(model, teacher, criterion, dataloader, dataloader_val, optimizer, scheduler, cfg, device):
+def train(model, teacher, criterion, val_crit, dataloader, dataloader_val, optimizer, scheduler, cfg, device):
     writer_train, writer_val, logger = printfs(cfg)
     accumulators_train = [AverageMeter() for _ in range(11)]
     accumulators_val = [AverageMeter() for _ in range(11)]
@@ -34,7 +34,7 @@ def train(model, teacher, criterion, dataloader, dataloader_val, optimizer, sche
                   accumulators_train, logger, writer_train, epoch, device, cfg)
         # run one validation
         with torch.no_grad():
-            run_val(model, criterion, dataloader_val,
+            run_val(model, val_crit, dataloader_val,
                     accumulators_val, logger, writer_val, epoch, device, cfg)
         # adjust lr
         scheduler.step()
@@ -268,6 +268,7 @@ if __name__ == '__main__':
             
     # compute loss
     criterion = TSLoss(cfg.Weights)
+    val_crit = Loss(cfg.Weights)
 
     # set data parallel
     if cfg.num_gpus > 1 and torch.cuda.is_available():
@@ -285,5 +286,5 @@ if __name__ == '__main__':
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
         optimizer, cfg.lr_step)
 
-    train(model, teacher, criterion, dataloader, dataloader_val,
+    train(model, teacher, criterion, val_crit, dataloader, dataloader_val,
           optimizer, scheduler, cfg, device)
