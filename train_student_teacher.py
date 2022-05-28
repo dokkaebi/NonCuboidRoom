@@ -52,7 +52,8 @@ def run_train(model, teacher, criterion, optimizer, dataloader, accumulators, lo
 
         # forward
         x = model(inputs['img'])
-        y = teacher(inputs['img'])
+        with torch.no_grad():
+            y = teacher(inputs['img'])
         loss, loss_stats = criterion(x, y)
         # optmizer
         optimizer.zero_grad()
@@ -92,8 +93,9 @@ def run_val(model, criterion, dataloader, accumulators, logger, writer, epoch, d
             inputs[key] = value.to(device)
 
         # forward
-        x = model(inputs['img'])
-        loss, loss_stats = criterion(x, **inputs)
+        with torch.no_grad():
+            x = model(inputs['img'])
+            loss, loss_stats = criterion(x, **inputs)
 
         # post process
         # parse predict plane and line results
