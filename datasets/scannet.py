@@ -20,7 +20,6 @@ class ScannetDataset(data.Dataset):
         self.config = config
         self.files = files
         self.skip = skip
-        self.max_objs = config.max_objs
         self.transforms = tf.Compose([
             tf.ToTensor(),
             # TODO: correct values?
@@ -71,7 +70,7 @@ class ScannetDataset(data.Dataset):
         img, inh, inw = self.padimage(img)
         img = self.transforms(img)
 
-        return img
+        return {'img': img}
 
     def __len__(self):
         return len(self.filenames)
