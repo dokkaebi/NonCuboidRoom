@@ -184,8 +184,8 @@ if __name__ == '__main__':
             torch.cuda.get_device_properties(i).total_memory
             for i in range(cfg.num_gpus)
         ]) / 1024 / 1024 / 1024
-        # we need around 1GB per batch size
-        batch_size = ceil(gpu_mem * 0.8)
+        # we need around 2GB per batch size to run the two models
+        batch_size = ceil(gpu_mem * 0.4)
         if batch_size < cfg.batch_size:
             print(f'changing batch size {cfg.batch_size} -> {batch_size}')
         cfg.batch_size = batch_size
