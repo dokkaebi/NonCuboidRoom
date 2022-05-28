@@ -172,7 +172,7 @@ class TSLoss(torch.nn.Module):
             key: self.smooth_l1(outputs[key], targets[key])
             for key in keys
         }
-        loss = torch.sum(stats.values())
+        loss = sum(stats.values())
         return loss, stats
 
 
