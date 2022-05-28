@@ -173,6 +173,7 @@ class TSLoss(torch.nn.Module):
             for key in keys
         }
         loss = sum(stats.values())
+        stats['loss'] = loss
         return loss, stats
 
 
