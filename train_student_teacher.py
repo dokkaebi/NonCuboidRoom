@@ -196,7 +196,8 @@ if __name__ == '__main__':
 
     dataset = ScannetDataset(cfg.Dataset.Scannet)
     dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=cfg.batch_size, shuffle=True, num_workers=cfg.num_workers)
+        dataset, batch_size=cfg.batch_size, shuffle=True,
+        num_workers=cfg.num_workers, drop_last=True)
 
     dataset_val = Structured3D(cfg.Dataset.Structured3D, phase='validation')
     dataloader_val = torch.utils.data.DataLoader(
