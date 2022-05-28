@@ -12,7 +12,7 @@ import argparse
 from easydict import EasyDict
 from scipy.optimize import linear_sum_assignment
 from collections import OrderedDict
-from NonCuboidRoom.datasets.structured3d import Structured3D
+from datasets.structured3d import Structured3D
 from datasets.scannet import ScannetDataset
 from models.detector import MobileViTDetector, MobileViTDeeplabDetector
 from models.loss import TSLoss
