@@ -213,6 +213,7 @@ def test_structured3d(model, criterion, dataloader, device, cfg):
         # forward
         with torch.no_grad():
             x = model(inputs['img'])
+            criterion(x, **inputs)
 
         # post process on output feature map size and extract plane and line detection results
         dt_planes, dt_lines, dt_params3d_instance, dt_params3d_pixelwise = post_process(x, Mnms=1)
@@ -271,6 +272,7 @@ def test_nyu303(model, criterion, dataloader, device, cfg):
         # forward
         with torch.no_grad():
             x = model(inputs['img'])
+            criterion(x, **inputs)
 
         # post process on output feature map size
         dt_planes, dt_lines, dt_params3d_instance, dt_params3d_pixelwise = post_process(x, Mnms=1)
@@ -327,6 +329,7 @@ def test_custom(model, criterion, dataloader, device, cfg):
         # forward
         with torch.no_grad():
             x = model(inputs['img'])
+            criterion(x, **inputs)
 
         # post process on output feature map size, and extract planes, lines, plane params instance and plane params pixelwise
         dt_planes, dt_lines, dt_params3d_instance, dt_params3d_pixelwise = post_process(x, Mnms=1)
