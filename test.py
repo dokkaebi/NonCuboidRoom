@@ -1,4 +1,5 @@
 import os
+from models.loss import _sigmoid
 import numpy as np
 from sympy import arg
 import torch
@@ -329,7 +330,16 @@ def test_custom(model, criterion, dataloader, device, cfg):
         # forward
         with torch.no_grad():
             x = model(inputs['img'])
-            criterion(x, **inputs)
+
+            # no GT for custom data, so skip loss computation
+            # apply just the side effects instead
+            plane_center = x['plane_center']
+            line_region = x['line_region']
+            line_params = x['line_params']
+            line_alpha = line_params[:, 1:2]
+            line_alpha = _sigmoid(line_alpha)
+            plane_center = _sigmoid(plane_center)
+            line_region = _sigmoid(line_region)
 
         # post process on output feature map size, and extract planes, lines, plane params instance and plane params pixelwise
         dt_planes, dt_lines, dt_params3d_instance, dt_params3d_pixelwise = post_process(x, Mnms=1)
